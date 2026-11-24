@@ -2,6 +2,10 @@
   "name": "dsh-workspace-pulse",
   "version": "0.1.0",
   "description": "DeepSeek Harness Web 折叠工作区的运行会话计数",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lingsamuel/dsh-workspace-pulse.git"
+  },
   "type": "module",
   "engines": { "node": ">=22" },
   "exports": {

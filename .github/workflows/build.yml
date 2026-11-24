@@ -1,0 +1,92 @@
+name: Build
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      release-filename: ${{ steps.package.outputs.release-filename }}
+      prerelease: ${{ steps.package.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26.13.1'
+          cache: npm
+      - name: Validate release tag and determine package filename
+        id: package
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          name=$(node -p 'require("./package.json").name')
+          filename="$name-$version.tgz"
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == v* ]]; then
+            if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match package version $version"
+              exit 1
+            fi
+            printf 'release-filename=%s\n' "$filename" >> "$GITHUB_OUTPUT"
+            if [[ "${version%%+*}" == *-* ]]; then
+              printf 'prerelease=true\n' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+          printf 'filename=%s\n' "$filename" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - run: npm test
+      - run: npm run package:plugin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dsh-workspace-pulse
+          path: artifacts/${{ steps.package.outputs.filename }}
+          if-no-files-found: error
+
+  publish-npm:
+    needs: build
+    if: needs.build.outputs.release-filename != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26.13.1'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: dsh-workspace-pulse
+          path: artifacts
+      - run: npm publish "./artifacts/$RELEASE_FILENAME" --access public --tag "$NPM_DIST_TAG"
+        env:
+          RELEASE_FILENAME: ${{ needs.build.outputs.release-filename }}
+          NPM_DIST_TAG: ${{ needs.build.outputs.prerelease == 'true' && 'next' || 'latest' }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  github-release:
+    needs: build
+    if: needs.build.outputs.release-filename != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dsh-workspace-pulse
+          path: artifacts
+      - run: |
+          flags=()
+          if [[ "$PRERELEASE" == true ]]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+            "${flags[@]}" "artifacts/$RELEASE_FILENAME"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          RELEASE_FILENAME: ${{ needs.build.outputs.release-filename }}
