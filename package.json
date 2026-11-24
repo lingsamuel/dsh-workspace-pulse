@@ -1,24 +1,39 @@
 {
   "name": "dsh-workspace-pulse",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DeepSeek Harness Web 折叠工作区的运行会话计数",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lingsamuel/dsh-workspace-pulse.git"
   },
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "exports": {
     ".": "./src/host.js",
     "./client": "./dist/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
-  "files": ["src/host.js", "dist/", "cordis.patch.yml", "manual/"],
-  "keywords": ["dsh-plugin", "deepseek-harness", "workspace"],
+  "files": [
+    "src/host.js",
+    "dist/",
+    "cordis.patch.yml",
+    "manual/"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "workspace"
+  ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
-    "client": { "platform": "web" }
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   },
   "scripts": {
     "build": "node scripts/build.mjs",
